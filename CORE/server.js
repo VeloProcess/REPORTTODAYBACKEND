@@ -29,9 +29,11 @@ app.use(cors({
   origin: [
     'https://reports-day.vercel.app',
     'https://reports-day.vercel.app/',
+    'https://reporttoday.vercel.app',
+    'https://reporttoday.vercel.app/',
     'http://localhost:8080',
     'http://localhost:3000',
-    '*', // Permite todas as origens (pode restringir em produção)
+    '*', // Permite todas as origens
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'token'],
