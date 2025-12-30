@@ -20,7 +20,7 @@ Acesse: **Configurações → Integrações → Webservice (API)**
 ## Token configurado
 
 ```
-API_55_TOKEN=ebd331c1-44b7-4947-aa8f-91e5df9479e3-202581414188
+API_55_TOKEN=ebd
 ```
 
 ## Campos recebidos
