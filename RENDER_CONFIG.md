@@ -35,6 +35,7 @@ API_55_USERNAME=Gabriel_Validação Ligações
 
 # WHATSAPP API
 WHATSAPP_API_URL=https://baileys-api-relat-rios.onrender.com
+# Para múltiplos números, separe por vírgula: 5511922048764,5511999999999
 WHATSAPP_DESTINATION=5511922048764
 
 # AGENDAMENTO

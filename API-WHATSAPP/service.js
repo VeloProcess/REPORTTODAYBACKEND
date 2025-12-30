@@ -75,6 +75,12 @@ export async function sendRelatorio(kpis, analise = null) {
     return { success: false, error: 'API não configurada' };
   }
   
+  // Se houver múltiplos números, envia para todos
+  if (config.destinations.length > 1) {
+    return await sendRelatorioMultiplos(kpis, analise);
+  }
+  
+  // Envia para um único número (comportamento original)
   const numero = config.destination;
   const jid = `${numero}@s.whatsapp.net`;
   
@@ -115,7 +121,7 @@ export async function sendRelatorio(kpis, analise = null) {
     
     // Se tiver análise histórica, envia mensagem complementar
     if (analise && analise.analise) {
-      await sendAnaliseHistorica(analise);
+      await sendAnaliseHistorica(analise, numero);
     }
     
     return {
@@ -139,11 +145,89 @@ export async function sendRelatorio(kpis, analise = null) {
 }
 
 /**
- * Envia mensagem com análise histórica (comparativo 15 dias)
- * @param {Object} analise - Dados da análise
+ * Envia relatório para múltiplos números
+ * @param {Object} kpis - KPIs calculados
+ * @param {Object} analise - Análise histórica (opcional)
  * @returns {Promise<Object>} Resultado do envio
  */
-async function sendAnaliseHistorica(analise) {
+async function sendRelatorioMultiplos(kpis, analise = null) {
+  const resultados = [];
+  let sucessos = 0;
+  let falhas = 0;
+  
+  console.log(`📊 WhatsApp: Enviando relatório para ${config.destinations.length} números...`);
+  
+  for (const numero of config.destinations) {
+    try {
+      const jid = `${numero}@s.whatsapp.net`;
+      
+      // Determina o período (Manhã ou Tarde)
+      const hora = new Date().getHours();
+      const periodo = hora < 12 ? 'Manhã' : 'Tarde';
+      
+      // Formata a data
+      const now = new Date();
+      const data = now.toLocaleDateString('pt-BR');
+      
+      // Monta o payload
+      const payload = {
+        jid: jid,
+        numero: numero,
+        dadosRelatorio: {
+          ligacoesRecebidas: kpis.totalCalls || 0,
+          ligacoesAtendidas: kpis.answered || 0,
+          ligacoesAbandonadas: kpis.abandoned || 0,
+          periodo: periodo,
+          data: data,
+          filas: kpis.peakHour ? [
+            {
+              momento: kpis.peakHour.hour || '00:00',
+              quantidadePessoas: kpis.peakHour.count || 0,
+            }
+          ] : [],
+        },
+      };
+      
+      console.log(`   📱 Enviando para ${numero}...`);
+      
+      const response = await api.post(config.endpoints.enviarRelatorio, payload);
+      
+      console.log(`   ✅ Enviado com sucesso para ${numero}`);
+      sucessos++;
+      resultados.push({ numero, success: true });
+      
+      // Envia análise histórica para este número
+      if (analise && analise.analise) {
+        await sendAnaliseHistorica(analise, numero);
+      }
+      
+      // Pequeno delay entre envios para não sobrecarregar
+      await new Promise(r => setTimeout(r, 500));
+      
+    } catch (error) {
+      console.error(`   ❌ Erro ao enviar para ${numero}:`, error.message);
+      falhas++;
+      resultados.push({ numero, success: false, error: error.message });
+    }
+  }
+  
+  console.log(`📊 Resumo: ${sucessos} sucessos, ${falhas} falhas`);
+  
+  return {
+    success: falhas === 0,
+    enviados: sucessos,
+    falhas: falhas,
+    resultados: resultados,
+  };
+}
+
+/**
+ * Envia mensagem com análise histórica (comparativo 15 dias)
+ * @param {Object} analise - Dados da análise
+ * @param {string} numero - Número de destino (opcional, usa config.destination se não fornecido)
+ * @returns {Promise<Object>} Resultado do envio
+ */
+async function sendAnaliseHistorica(analise, numero = null) {
   if (!analise || !analise.analise) {
     return { success: false, error: 'Sem dados de análise' };
   }
@@ -177,15 +261,16 @@ comparado com os últimos 15 dias
 _Baseado nos últimos ${historico.dias} dias úteis_`;
 
   try {
-    console.log(`📈 WhatsApp: Enviando análise histórica...`);
+    const targetNumber = numero || config.destination;
+    console.log(`📈 WhatsApp: Enviando análise histórica para ${targetNumber}...`);
     
     // Pequeno delay para não enviar junto
     await new Promise(r => setTimeout(r, 2000));
     
-    const result = await sendMessage(mensagem);
+    const result = await sendMessage(mensagem, targetNumber);
     
     if (result.success) {
-      console.log('✅ WhatsApp: Análise histórica enviada!');
+      console.log(`✅ WhatsApp: Análise histórica enviada para ${targetNumber}!`);
     }
     
     return result;
